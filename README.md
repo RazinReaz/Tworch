@@ -15,7 +15,7 @@ import tworch
 Please Refer to the [training code](training/train.py) or [testing code](evaluate/test.py) for a complete example.
 
 # Documentation
-
+- **[Feed Forward Neural Network](docs/fnn.md)**
 
 
 
