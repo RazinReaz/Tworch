@@ -1,10 +1,20 @@
 import numpy as np
-from .initializer import Xavier, He, LeCun
-from .optimizer import Adam
+from typing import Callable
+from .initializer import *
+from .optimizer import *
 
+class Layer():
+    def __init__(self):
+        pass
+    def __call__(self, input):
+        pass
+    def backward(self, delta_output, learning_rate):
+        pass
+    def __str__(self) -> str:
+        return "Layer"
 
-class DenseLayer():
-    def __init__(self, input_size, output_size, initializer = Xavier()):
+class DenseLayer(Layer):
+    def __init__(self, input_size:int, output_size:int, *, initializer:Initializer = Xavier()):
         self.input_size = input_size
         self.output_size = output_size
         self.initializer = initializer
@@ -19,7 +29,7 @@ class DenseLayer():
         input: (input_size, batch_size)
         output: (output_size, batch_size)
         """
-        assert input.shape[0] == self.input_size
+        assert input.shape[0] == self.input_size, f"Dense layer expects input size of {self.input_size} but got {input.shape[0]}"
         self.input = input
         self.output = np.dot(self.weights, input) + self.bias
         return self.output
@@ -31,7 +41,7 @@ class DenseLayer():
         """
         delta_output: (output_size, batch_size)
         """
-        assert delta_output.shape == self.output.shape
+        assert delta_output.shape == self.output.shape, f"back propagation expects delta_output of shape {self.output.shape} but got {delta_output.shape}"
         batch_size = delta_output.shape[1]
         self.delta_weights = np.dot(delta_output, self.input.T) / batch_size
         self.delta_bias = np.sum(delta_output, axis=1, keepdims=True) / batch_size
@@ -44,7 +54,7 @@ class DenseLayer():
 
         return np.dot(weights_copy.T, delta_output)
     
-class Dropout():
+class Dropout(Layer):
     def __init__(self, keep_prob):
         self.keep_prob = keep_prob
         self.name = "Dropout"
@@ -61,7 +71,7 @@ class Dropout():
     def backward(self, delta_output, learning_rate):
         return (delta_output * self.mask) / self.keep_prob
 
-def softmax(x):
+def softmax(x:np.ndarray):
     """
     x: (classes, batch_size)
     """
@@ -70,26 +80,31 @@ def softmax(x):
     probabilities = x / np.sum(x, axis=0, keepdims=True)
     return probabilities
 
-def softmax_prime(x):
+def softmax_prime(x:np.ndarray):
     return softmax(x) * (1 - softmax(x))
 
-def relu(x):
+def relu(x:np.ndarray):
     return np.maximum(x, 0)
-def relu_prime(x):
+def relu_prime(x:np.ndarray):
     return np.where(x > 0, 1, np.where(x < 0, 0, 0.5))
 
-def tanh(x):
+def tanh(x:np.ndarray):
     return np.tanh(x)
-def tanh_prime(x):
+def tanh_prime(x:np.ndarray):
     return 1 - np.tanh(x)**2
 
-def sigmoid(x):
+def sigmoid(x:np.ndarray):
     return 1 / (1 + np.exp(-x))
-def sigmoid_prime(x):
+def sigmoid_prime(x:np.ndarray):
     return sigmoid(x) * (1 - sigmoid(x))
 
-class Activation():
-    def __init__(self, activation, derivative, name):
+def linear(x:np.ndarray):
+    return x
+def linear_prime(x:np.ndarray):
+    return np.ones_like(x)
+
+class Activation(Layer):
+    def __init__(self, activation: Callable, derivative: Callable, name: str):
         self.activation = activation
         self.derivative = derivative
         self.name = name
@@ -98,12 +113,12 @@ class Activation():
         self.output_size = size
     def __str__(self) -> str:
         return "Activation: "+ self.name
-    def __call__(self, input):
-        assert len(input.shape) == 2
+    def __call__(self, input:np.ndarray):
+        assert len(input.shape) == 2, f'Activation layer expects input of shape (input_size, batch_size) but got {input.shape}'
         self.input = input
         self.output = self.activation(input)
         return self.output    
-    def backward(self, delta_output, learning_rate):
+    def backward(self, delta_output:np.ndarray, learning_rate:float):
         return delta_output * self.derivative(self.input)
 
 class Softmax(Activation):
@@ -121,3 +136,7 @@ class Tanh(Activation):
 class Sigmoid(Activation):
     def __init__(self):
         super().__init__(activation=sigmoid, derivative=sigmoid_prime, name="Sigmoid")
+
+class Linear(Activation):
+    def __init__(self):
+        super().__init__(activation=linear, derivative=linear_prime, name="Linear")

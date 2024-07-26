@@ -1,16 +1,18 @@
 import numpy as np
 
 class Loss():
-    def __call__(self, output, target):
+    def __call__(self, output:np.ndarray, target:np.ndarray)->np.float64:
         sample_losses = self.calculate(output, target)
         return np.mean(sample_losses)
     def __str__(self) -> str:
         return "Loss: "
+    def calculate(self, output:np.ndarray, target:np.ndarray):
+        pass
 
 class CrossEntropyLoss(Loss):
     def __str__(self) -> str:
         return super().__str__() + "Cross Entropy Loss"
-    def calculate(self, output, target):
+    def calculate(self, output:np.ndarray, target:np.ndarray)->np.ndarray:
         """
         output: (classes, batch_size)
         target: (batch_size, ) or (classes, batch_size)

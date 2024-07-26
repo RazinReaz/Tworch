@@ -19,14 +19,14 @@ def show_image(image, label):
     plt.imshow(image.reshape(28,28).T, cmap='gray')
     plt.show()
 
-def confusion_heatmap(confusion_matrix, labels, title, model_number, save=True):
+def confusion_heatmap(confusion_matrix, *, labels, title:str, save_path:str=None):
     plt.figure(figsize=(8, 6))
     sns.heatmap(confusion_matrix, cmap='viridis', fmt='d', xticklabels=labels, yticklabels=labels)
     plt.ylabel('Predicted')
     plt.xlabel('Actual')
     plt.title(title)
-    if save:
-        plt.savefig('offline-3-fnn/report/images/'+model_number+'/'+title+'.png')
+    if save_path is not None:
+        plt.savefig(save_path)
     else:
         plt.show()
 

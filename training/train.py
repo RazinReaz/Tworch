@@ -32,7 +32,7 @@ if __name__ == "__main__":
     filepath = "models/model-"+model_time+".pkl"
     modelpath = "models/model-"+model_time+".pkl"
     
-    model = tworch.network.FNN(input_size, output_size, learning_rate, batch_size, epochs)
+    model = tworch.network.FNN(input_size, output_size, learning_rate=learning_rate, batch_size=batch_size, epochs=epochs)
     model.sequential(tworch.layer.DenseLayer(input_size, 128, initializer=tworch.initializer.He()),
                     tworch.layer.ReLU(),
                     tworch.layer.Dropout(0.8),
@@ -44,14 +44,15 @@ if __name__ == "__main__":
     model.train(X_train, y_train)
     model.export(filepath)
     with open(modelpath, 'rb') as f:
-        model = tworch.network.create_model(f)
+        model = tworch.network.load_model(f)
+    model.describe()
     
     training_accuracy, training_loss, training_confusion = model.score(X_train, y_train)
     validation_accuracy, validation_loss, validation_confusion = model.score(X_validation, y_validation)
     validation_macro_f1 = model.macro_f1(X_validation, y_validation)
 
-    print("training accuracy:\t", training_accuracy*100, "%")
-    print("validation accuracy:\t", validation_accuracy*100, "%")
-    print("training loss:\t\t", training_loss)
-    print("validation loss:\t", validation_loss)
-    print("validation macro f1:\t", validation_macro_f1)
+    print(f'training accuracy:\t {training_accuracy*100:.2f}%')
+    print(f'validation accuracy:\t {validation_accuracy*100:.2f}%')
+    print(f'training loss:\t\t {training_loss:.2f}')
+    print(f'validation loss:\t {validation_loss:.2f}')
+    print(f'validation macro f1:\t {validation_macro_f1:.2f}')

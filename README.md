@@ -15,16 +15,9 @@ import tworch
 Please Refer to the [training code](training/train.py) or [testing code](evaluate/test.py) for a complete example.
 
 # Documentation
-- **[Feed Forward Neural Network](docs/fnn.md)**
+- **[Feed Forward Neural Network](https://github.com/RazinReaz/Tworch/blob/main/docs/fnn.md)**
 
 
-
-\
-\
-\
-\
-\
-\
 
 ## Supported Features
 - [x] Feed Forward Neural Network

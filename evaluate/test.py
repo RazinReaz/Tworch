@@ -9,6 +9,7 @@ from tqdm import tqdm
 
 import os
 import sys
+import argparse
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import classes.utils as utils
@@ -31,8 +32,11 @@ if __name__ == "__main__":
     
     print("test dataset converted to numpy arrays")
     
-    model_number = 3
-    modelpath = 'offline-3-fnn/trained-models/letter-model-'+ str(model_number)+'.pkl'
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--modelpath", type=int, help="model number to evaluate")
+    args = parser.parse_args()
+
+    modelpath = args.modelpath
     
     with open(modelpath, 'rb') as f:
         model = network.create_model(f)
@@ -46,4 +50,4 @@ if __name__ == "__main__":
     print("test macro f1:\t\t", test_macro_f1)
 
     characters = [chr(i+97) for i in range(26)]
-    utils.confusion_heatmap(test_confusion, labels=characters, title="Test Confusion Matrix", model_number=str(model_number), save=False)
+    utils.confusion_heatmap(test_confusion, labels=characters, title="Test Confusion Matrix", save_path="offline-3-fnn/report/images/"+modelpath+"/test_confusion.png")

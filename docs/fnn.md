@@ -55,6 +55,6 @@ model.describe() -> None
 This method prints the architecture of the model.
 ### Create Model
 ``` python
-create_model(filepath : str) -> FNN
+load_model(filepath : str) -> FNN
 ```
 This method creates a trained model from an exported `pickle` file.

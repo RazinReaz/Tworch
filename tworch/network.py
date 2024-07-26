@@ -5,12 +5,12 @@ import pickle
 import os
 from tqdm import tqdm
 
-from .layer import DenseLayer, Dropout, Activation, ReLU, Sigmoid, Tanh, Softmax
-from .loss import CrossEntropyLoss
+from .layer import *
+from .loss import *
 from .utils import one_hot
 
 class FNN():
-    def __init__(self, input_size, output_size, learning_rate=0.0005, batch_size=50, epochs=100, loss = CrossEntropyLoss()):
+    def __init__(self, input_size:int, output_size:int, *, learning_rate:float=0.0005, batch_size:int=50, epochs:int=100, loss:Loss = CrossEntropyLoss()):
         self.input_size = input_size
         self.output_size = output_size
         
@@ -28,7 +28,7 @@ class FNN():
         self.training_accuracies = []
         self.validation_accuracies = []
     
-    def __add_layer(self, layer):
+    def __add_layer(self, layer:Layer)->None:
         if len(self.children) == 0:
             assert isinstance(layer, DenseLayer)
             assert layer.input_size == self.input_size
@@ -44,12 +44,12 @@ class FNN():
             layer.set_size(self.children[-1].output_size)
         self.children.append(layer)
     
-    def sequential(self, *layers):
+    def sequential(self, *layers:Layer)->None:
         for layer in layers:
             self.__add_layer(layer)
         self.built = True
     
-    def forward(self, input, training=True):
+    def forward(self, input:np.ndarray, *, training:bool=True)->np.ndarray:
         """
         input: (input_size, batch_size)
         output: (output_size, batch_size)
@@ -72,7 +72,7 @@ class FNN():
         self.output = next
         return self.output
     
-    def backward(self, target):
+    def backward(self, target:np.ndarray)->None:
         """
         output: (classes, batch_size)
         target: (batch_size, 1) or (batch_size, classes)[one hot encoded] 
@@ -92,7 +92,7 @@ class FNN():
             if i == 0: continue
             delta = layer.backward(delta, self.learning_rate)
 
-    def train(self, X, y):
+    def train(self, X:np.ndarray, y:np.ndarray)->None:
         # train by mini batch
         for _ in tqdm(range(self.epochs)):
             for i in range(0, X.shape[0], self.batch_size):
@@ -101,18 +101,18 @@ class FNN():
 
 
 
-    def predict(self, X):
+    def predict(self, X:np.ndarray)->np.ndarray:
         return np.argmax(self.forward(X, training=False), axis=0)
             
 
-    def accuracy(self, predictions, target):
+    def accuracy(self, predictions:np.ndarray, target:np.ndarray)->np.float64:
         """
         output: (classes, batch_size)
         target: (batch_size, )
         """
         return np.mean(predictions == target)
 
-    def score(self, X, y):
+    def score(self, X:np.ndarray, y:np.ndarray)->tuple:
         output = self.predict(X)
         accuracy = self.accuracy(output, y)
         loss = self.loss(self.output, y)
@@ -123,7 +123,7 @@ class FNN():
         confusion = confusion.astype(int)
         return accuracy, loss, confusion
     
-    def macro_f1(self, X, y):
+    def macro_f1(self, X:np.ndarray, y:np.ndarray)->np.float64:
         output = self.predict(X)
         
         confusion = np.zeros((self.output_size, self.output_size))
@@ -138,7 +138,7 @@ class FNN():
         f1 = 2 * precision * recall / (precision + recall)
         return np.mean(f1)
 
-    def export(self, filepath):
+    def export(self, filepath:str)->None:
         assert self.built
         layers = []
         for layer in self.children:
@@ -159,7 +159,7 @@ class FNN():
             pickle.dump(layers, f)
 
 
-    def describe(self):
+    def describe(self)->None:
         assert self.built
         print("learning rate:", self.learning_rate)
         print("batch size:", self.batch_size)
@@ -188,28 +188,30 @@ class FNN():
     #     plt.savefig('offline-3-fnn/report/images/'+model_number+'/accuracy.png')
 
 
-def create_model(filepath):
+def load_model(filepath:str)->FNN:
     layer_infos = pickle.load(filepath)
+    layers = []
     model = FNN(layer_infos[0]['input_size'], layer_infos[-1]['output_size'])
     for layer_info in layer_infos:
         if layer_info['name'] == 'Dense':
-            model.__add_layer(DenseLayer(layer_info['input_size'], layer_info['output_size']))
-            model.children[-1].weights = layer_info['weights']
-            model.children[-1].bias = layer_info['bias']
+            layers.append(DenseLayer(layer_info['input_size'], layer_info['output_size']))
+            layers[-1].weights = layer_info['weights']
+            layers[-1].bias = layer_info['bias']
         if layer_info['name'] == 'ReLU':
-            model.__add_layer(ReLU())
+            layers.append(ReLU())
         if layer_info['name'] == 'Sigmoid':
-            model.__add_layer(Sigmoid())
+            layers.append(Sigmoid())
         if layer_info['name'] == 'Tanh':
-            model.__add_layer(Tanh())
+            layers.append(Tanh())
         if layer_info['name'] == 'Dropout':
-            model.__add_layer(Dropout(layer_info['keep_prob']))
+            layers.append(Dropout(layer_info['keep_prob']))
         if layer_info['name'] == 'Softmax':
-            model.__add_layer(Softmax())
+            layers.append(Softmax())
+    model.sequential(*layers)
     model.built = True
     return model
 
-def export_model(model, filepath):
+def export_model(model:FNN, filepath:str)->None:
     # dump only the weights and biases
     assert model.built
     layers = []
@@ -225,7 +227,9 @@ def export_model(model, filepath):
         if isinstance(layer, Dropout):
             layer_info['keep_prob'] = layer.keep_prob
         layers.append(layer_info)
+
     if not os.path.exists(os.path.dirname(filepath)):
         os.makedirs(os.path.dirname(filepath))
+
     with open(filepath, 'wb') as f:
         pickle.dump(layers, f)
