@@ -80,28 +80,6 @@ def softmax(x:np.ndarray):
     probabilities = x / np.sum(x, axis=0, keepdims=True)
     return probabilities
 
-def softmax_prime(x:np.ndarray):
-    return softmax(x) * (1 - softmax(x))
-
-def relu(x:np.ndarray):
-    return np.maximum(x, 0)
-def relu_prime(x:np.ndarray):
-    return np.where(x > 0, 1, np.where(x < 0, 0, 0.5))
-
-def tanh(x:np.ndarray):
-    return np.tanh(x)
-def tanh_prime(x:np.ndarray):
-    return 1 - np.tanh(x)**2
-
-def sigmoid(x:np.ndarray):
-    return 1 / (1 + np.exp(-x))
-def sigmoid_prime(x:np.ndarray):
-    return sigmoid(x) * (1 - sigmoid(x))
-
-def linear(x:np.ndarray):
-    return x
-def linear_prime(x:np.ndarray):
-    return np.ones_like(x)
 
 class Activation(Layer):
     def __init__(self, activation: Callable, derivative: Callable, name: str):
@@ -121,22 +99,65 @@ class Activation(Layer):
     def backward(self, delta_output:np.ndarray, learning_rate:float):
         return delta_output * self.derivative(self.input)
 
+
+
 class Softmax(Activation):
     def __init__(self):
-        super().__init__(activation=softmax, derivative=softmax_prime, name="Softmax")
+        super().__init__(activation=self.softmax, derivative=self.softmax_prime, name="Softmax")
+
+    def softmax(self, x: np.ndarray):
+        exp_x = np.exp(x - np.max(x))
+        return exp_x / exp_x.sum(axis=0, keepdims=True)
+
+    def softmax_prime(self, x: np.ndarray):
+        return self.softmax(x) * (1 - self.softmax(x))
 
 class ReLU(Activation):
     def __init__(self):
-        super().__init__(activation=relu, derivative=relu_prime, name="ReLU")
-        
+        super().__init__(activation=self.relu, derivative=self.relu_prime, name="ReLU")
+
+    def relu(self, x: np.ndarray):
+        return np.maximum(x, 0)
+
+    def relu_prime(self, x: np.ndarray):
+        return np.where(x > 0, 1, np.where(x < 0, 0, 0.5))
+
 class Tanh(Activation):
     def __init__(self):
-        super().__init__(activation=tanh, derivative=tanh_prime, name="Tanh")
+        super().__init__(activation=self.tanh, derivative=self.tanh_prime, name="Tanh")
+
+    def tanh(self, x: np.ndarray):
+        return np.tanh(x)
+
+    def tanh_prime(self, x: np.ndarray):
+        return 1 - np.tanh(x)**2
 
 class Sigmoid(Activation):
     def __init__(self):
-        super().__init__(activation=sigmoid, derivative=sigmoid_prime, name="Sigmoid")
+        super().__init__(activation=self.sigmoid, derivative=self.sigmoid_prime, name="Sigmoid")
+
+    def sigmoid(self, x: np.ndarray):
+        return 1 / (1 + np.exp(-x))
+
+    def sigmoid_prime(self, x: np.ndarray):
+        return self.sigmoid(x) * (1 - self.sigmoid(x))
 
 class Linear(Activation):
     def __init__(self):
-        super().__init__(activation=linear, derivative=linear_prime, name="Linear")
+        super().__init__(activation=self.linear, derivative=self.linear_prime, name="Linear")
+
+    def linear(self, x: np.ndarray):
+        return x
+
+    def linear_prime(self, x: np.ndarray):
+        return np.ones_like(x)
+    
+class Softplus(Activation):
+    def __init__(self):
+        super().__init__(activation=self.softplus, derivative=self.softplus_prime, name="Softplus")
+
+    def softplus(self, x: np.ndarray):
+        return np.log(1 + np.exp(x))
+
+    def softplus_prime(self, x: np.ndarray):
+        return 1 / (1 + np.exp(-x))

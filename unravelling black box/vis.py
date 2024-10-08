@@ -1,12 +1,14 @@
-
+import os
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import imageio
 import glob
+import json
+import shutil
+import argparse
 
-import os
-import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 this_file_path = os.path.dirname(os.path.abspath(__file__))
 import tworch
@@ -20,6 +22,7 @@ def backward(delta_output, net, learning_rate):
     for layer in reversed(net):
         delta_output = layer.backward(delta_output, learning_rate)
     return delta_output
+
 
 def save_fitting_line(net, x, dataset, title, savepath:str):
     model = net.copy()
@@ -37,56 +40,142 @@ def save_fitting_line(net, x, dataset, title, savepath:str):
     plt.savefig(f'{savepath}/fitting_line_at_{epoch:0>4}.png')
     plt.close()
 
-def create_gif(directory:str):
-    # create a gif from the images of the synthetic data
-    images = []
-    for filename in glob.glob(f'{this_file_path}/{directory}/*.png'):
-        images.append(imageio.imread(filename))
-    imageio.mimsave(f'{this_file_path}/fitting.gif', images, duration=0.02)
+def create_gif(directory:str, savepath:str, filename:str, duration:float=0.02, loop=0):
+    images = [imageio.v2.imread(filename) for filename in sorted(glob.glob(os.path.join(directory, '*.png')))]
+    imageio.mimsave(os.path.join(savepath, f'{filename}.gif'), images, duration=duration, loop=loop)
+    
+
+def graph_array(y, title:str, xlabel:str, ylabel:str, label:str, savepath:str=None):
+    plt.plot(y, label=label)
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.grid()
+    plt.legend()
+    if savepath:
+        plt.savefig(f'{savepath}/{title}.png')
+    else:
+        plt.show()
+    plt.close()
+
+
+def plot_loss(losses:list, labels:list[str], *, savepath: str = None, filename:str=None, clip_begin:bool = False):
+    plt.figure(figsize=(10, 6))
+    for loss, label in zip(losses, labels):
+        if clip_begin:
+            loss = loss[5:]
+        plt.plot(loss, label=label)
+    plt.xlabel('Epochs', fontsize=14)
+    plt.ylabel('Loss', fontsize=14)
+    plt.title('Loss over Epochs', fontsize=16)
+    plt.legend(fontsize=12)
+    plt.grid(True, which='both', linestyle='--', linewidth=0.5)
+    plt.minorticks_on()
+    plt.tick_params(axis='both', which='major', labelsize=12)
+    plt.tick_params(axis='both', which='minor', labelsize=10)
+    if savepath:
+        plt.savefig(f'{savepath}/{filename}.png', bbox_inches='tight')
+    else:
+        plt.show()
+    plt.close()
+
+def create_dense_network(num_layers:int, num_neurons:int, input_size:int, output_size:int, activation:tworch.layer.Activation):
+    net = [
+        tworch.layer.DenseLayer(input_size, num_neurons),
+        activation(),
+        *[layer for _ in range(num_layers - 1) for layer in (tworch.layer.DenseLayer(num_neurons, num_neurons), activation())],
+        tworch.layer.DenseLayer(num_neurons, output_size)
+    ]
+    return net
+
+
+
+INPUT_SIZE = 1
+OUTPUT_SIZE = 1
 
 if __name__ == "__main__":
-    dataset = np.load(f'{this_file_path}/dataset(500, 2).npy')
+    parser = argparse.ArgumentParser(description='Train a neural network to fit a dataset')
+    parser.add_argument('--layers', type=int, help='Number of layers in the network')
+    parser.add_argument('--neurons', type=int, help='Number of neurons in each layer')
+    parser.add_argument('--activation', type=str, help='Activation function to use')
+    parser.add_argument('--dataset_name', type=str, help='Path to the dataset')
+    parser.add_argument('--save', type=bool, help='Save the results', default=False)
+    parser.add_argument('--lr', type=float, help='Learning rate', default=0.015)
+    parser.add_argument('--epochs', type=int, help='Number of epochs to train', default=100)
+
+    args = parser.parse_args()
+
+
+    # remove the plots folder and recreate it
+    plots_path = os.path.join(this_file_path, 'plots')
+    if os.path.exists(plots_path):
+        shutil.rmtree(plots_path)
+    os.makedirs(plots_path)
+    reports_path = os.path.join(this_file_path, 'reports')
+    if not os.path.exists(reports_path):
+        os.makedirs(reports_path)
+    
+    dataset_path = os.path.join(this_file_path, 'datasets')
+    dataset_name = args.dataset_name
+    dataset = np.load(f'{dataset_path}/{dataset_name}(500, 2).npy')
 
     x = dataset[:, 0]
     y = dataset[:, 1]
     x = x.reshape(1, -1)
     y = y.reshape(1, -1)
-    print(f'{x.shape=}, {y.shape=}')
+    n = len(x[0])
 
-    net = []
-    net.append(tworch.layer.DenseLayer(1, 4))
-    net.append(tworch.layer.Sigmoid())
-    net.append(tworch.layer.DenseLayer(4, 1))
+    # Network parameters
+    learning_rate = args.lr
+    epochs = args.epochs
+    batch_size = 20
+    train_losses = []
 
-    learning_rate = 0.01
-    epochs = 400
-    losses = []
-    input = x
-    target = y
+    layers = args.layers
+    neurons = args.neurons
+    if args.activation == 'ReLU':
+        activation = tworch.layer.ReLU
+    elif args.activation == 'Tanh':
+        activation = tworch.layer.Tanh
+    elif args.activation == 'Sigmoid':
+        activation = tworch.layer.Sigmoid
+    elif args.activation == 'Softplus':
+        activation = tworch.layer.Softplus
+    
+    # Create the network
+    net = create_dense_network(num_layers=layers, num_neurons=neurons, input_size=INPUT_SIZE, output_size=OUTPUT_SIZE, activation=activation)
+    print(f'Created a network with {layers} layers, {neurons} neoruns, and {args.activation} activation')
+    # Create the fitting line input
     xmin, xmax = np.min(x), np.max(x)
     x_linspace = np.linspace(xmin, xmax, 100).reshape(1, -1) # 1x100
 
+    # Train the network
     for epoch in tqdm(range(epochs)):
-        forward_output = forward(input, net)
-        # print(f'{forward_output.shape=}, {target.shape=}')
-        delta = (forward_output - target)**2
-        loss = np.mean(delta)
-        losses.append(loss)
-        backward(delta, net, learning_rate)
-        save_fitting_line(net, x_linspace, dataset, title=f'Fitting line at epoch {epoch:0>4}, loss: {loss}', savepath=f'{this_file_path}/plots')
+        train_loss = 0
+        for i in range(0, n, batch_size):
+            input = x[:, i:i+batch_size]
+            target = y[:, i:i+batch_size]
+            forward_output = forward(input, net)
+            train_loss += np.sum((forward_output - target) ** 2)
+            delta = 2 * (forward_output - target) 
+            backward(delta, net, learning_rate)
 
+        train_losses.append(train_loss/n)
+        save_fitting_line(net,x_linspace, dataset, title=f'Fitting line after epoch {epoch+1:0>4}, loss: {train_loss / n:.4f}', savepath=f'{this_file_path}/plots')
     print(f'Training done for {epochs} epochs')
-    create_gif(f'plots')
+
+    # setup for results
+    configuration_name = f'{layers} layer {neurons} nn - {args.activation}'
+    
+    create_gif(directory=f'{plots_path}', savepath=f'{reports_path}', filename=f'fitting {configuration_name}')
     print(f'Gif created')
 
-    # xmin, xmax = np.min(x), np.max(x)
-    # x_linspace = np.linspace(xmin, xmax, 100).reshape(1, -1) # 1x100
-    # first_layer_output = net[0].weights @ x_linspace + net[0].bias # 3x100
-    # print(f'{first_layer_output.shape=}')
-    # activation_output = net[1](first_layer_output) # 3x100
-    # second_layer_output = net[2].weights @ activation_output + net[2].bias # 1x100
+    plot_loss([train_losses], ['train loss'], savepath=f'{reports_path}', filename=f'loss {configuration_name}', clip_begin=True)
+    print(f'Loss graph created')
 
-    # plt.scatter(x, y, s=1)
-    # plt.plot(x_linspace[0], second_layer_output[0], color='red', )
-    # plt.show()
+    # save the losses as json
+    with open(f'{reports_path}/losses {configuration_name}.json', 'w') as f:
+        json.dump({'train': train_losses}, f)
+    print(f'Losses saved as json')
+
 
