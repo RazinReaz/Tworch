@@ -26,6 +26,18 @@ class Momentum(Optimizer):
         self.v = self.beta * self.v + (1 - self.beta) * delta_weights
         weights -= learning_rate * self.v
         return weights
+    
+class RMSProp(Optimizer):
+    def __init__(self, input_size:int, output_size:int, beta:float=0.9, epsilon:float=1e-8):
+        self.beta = beta
+        self.epsilon = epsilon
+        self.sum_of_squares = np.zeros((output_size, input_size))
+    def __str__(self) -> str:
+        return "RMSProp: " + str(self.beta)
+    def update(self, weights:np.ndarray, delta_weights:np.ndarray, learning_rate:float)->np.ndarray:
+        self.sum_of_squares = self.beta * self.sum_of_squares + (1 - self.beta) * delta_weights**2
+        weights -= learning_rate * delta_weights / (np.sqrt(self.sum_of_squares) + self.epsilon)
+        return weights    
 
 
 class Adam(Optimizer):

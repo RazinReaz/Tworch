@@ -40,13 +40,27 @@ def stairs(*, n:int, xmin:float, xmax:float):
         dataset.append([x, y])
     return np.array(dataset)
 
+def gaussian(*, n:int, xmin:float, xmax:float):
+    xrange = xmax - xmin
+    dataset = []
+    mean = (xmin + xmax) / 2
+    std = 0.05
+    for i in range(n):
+        x = np.random.uniform(xmin, xmax)
+        noise = np.abs(np.random.normal(0, 0.05))
+        y =  np.exp(-(0.5 * (x - mean)/std)** 2) + noise
+        dataset.append([x, y])
+    return np.array(dataset)
+
 num_points = 500
-dataset_name = f"stairs"
+dataset_name = f"gaussian"
 
 if dataset_name == "down-up-down":
     dataset = down_up_down(n=num_points, xmin=0, xmax=1)
 elif dataset_name == "stairs":
     dataset = stairs(n=num_points, xmin=0, xmax=1)
+elif dataset_name == "gaussian":
+    dataset = gaussian(n=num_points, xmin=0, xmax=1)
 else:
     raise ValueError(f"Unknown dataset name: {dataset_name}")
 

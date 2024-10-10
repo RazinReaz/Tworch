@@ -102,6 +102,7 @@ if __name__ == "__main__":
     parser.add_argument('--save', type=bool, help='Save the results', default=False)
     parser.add_argument('--lr', type=float, help='Learning rate', default=0.015)
     parser.add_argument('--epochs', type=int, help='Number of epochs to train', default=100)
+    parser.add_argument('--batch_size', type=int, help='Batch size', default=20)
 
     args = parser.parse_args()
 
@@ -111,9 +112,16 @@ if __name__ == "__main__":
     if os.path.exists(plots_path):
         shutil.rmtree(plots_path)
     os.makedirs(plots_path)
-    reports_path = os.path.join(this_file_path, 'reports')
+    reports_path = os.path.join(this_file_path, f'reports/{args.activation}')
     if not os.path.exists(reports_path):
         os.makedirs(reports_path)
+    json_path = os.path.join(reports_path, 'json')
+    if not os.path.exists(json_path):
+        os.makedirs(json_path)
+    loss_plot_path = os.path.join(reports_path, 'loss_plots')
+    if not os.path.exists(loss_plot_path):
+        os.makedirs(loss_plot_path)
+
     
     dataset_path = os.path.join(this_file_path, 'datasets')
     dataset_name = args.dataset_name
@@ -128,7 +136,7 @@ if __name__ == "__main__":
     # Network parameters
     learning_rate = args.lr
     epochs = args.epochs
-    batch_size = 20
+    batch_size = args.batch_size
     train_losses = []
 
     layers = args.layers
@@ -148,6 +156,8 @@ if __name__ == "__main__":
     # Create the fitting line input
     xmin, xmax = np.min(x), np.max(x)
     x_linspace = np.linspace(xmin, xmax, 100).reshape(1, -1) # 1x100
+    # setup for results
+    configuration_name = f'{layers} layer {neurons} nn-{args.activation} ({dataset_name})'
 
     # Train the network
     for epoch in tqdm(range(epochs)):
@@ -161,20 +171,17 @@ if __name__ == "__main__":
             backward(delta, net, learning_rate)
 
         train_losses.append(train_loss/n)
-        save_fitting_line(net,x_linspace, dataset, title=f'Fitting line after epoch {epoch+1:0>4}, loss: {train_loss / n:.4f}', savepath=f'{this_file_path}/plots')
+        save_fitting_line(net, x_linspace, dataset, title=f'Fitting line epoch:{epoch+1:0>4} with {configuration_name.split("(")[0][:-1]}, loss: {train_loss / n:.4f}', savepath=f'{this_file_path}/plots')
     print(f'Training done for {epochs} epochs')
-
-    # setup for results
-    configuration_name = f'{layers} layer {neurons} nn - {args.activation}'
     
-    create_gif(directory=f'{plots_path}', savepath=f'{reports_path}', filename=f'fitting {configuration_name}')
+    create_gif(directory=f'{plots_path}', savepath=f'{reports_path}', filename=f'fitting {configuration_name}', duration=0.1)
     print(f'Gif created')
 
-    plot_loss([train_losses], ['train loss'], savepath=f'{reports_path}', filename=f'loss {configuration_name}', clip_begin=True)
+    plot_loss([train_losses], ['train loss'], savepath=f'{loss_plot_path}', filename=f'loss {configuration_name}', clip_begin=True)
     print(f'Loss graph created')
 
     # save the losses as json
-    with open(f'{reports_path}/losses {configuration_name}.json', 'w') as f:
+    with open(f'{json_path}/losses {configuration_name}.json', 'w') as f:
         json.dump({'train': train_losses}, f)
     print(f'Losses saved as json')
 

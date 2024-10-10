@@ -26,7 +26,7 @@ Please Refer to the [training code](training/train.py) or [testing code](evaluat
   - [x] Initializers
     - [x] Xavier
     - [x] He
-    - [x] LeCum
+    - [x] LeCun
   - [x] Activation
     - [x] Sigmoid
     - [x] Tanh
